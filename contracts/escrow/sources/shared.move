@@ -145,7 +145,7 @@ module escrow::shared {
         {
             ts.next_tx(BOB);
             let escrow: Escrow<Coin<SUI>> = ts.take_shared();
-            let k2: Key= ts.take_from_sender();
+            let k2: Key = ts.take_from_sender();
             let l2: Locked<Coin<SUI>> = ts.take_from_sender();
             let c = escrow.swap(k2, l2, ts.ctx());
 
@@ -166,9 +166,103 @@ module escrow::shared {
         ts::end(ts);
     }
 
-    // #[test]
-    // #[expected_failure(abort_code = EMismatchedSenderRecipient)]
-    // fun test_mismatch_sener() {
-    //     let mut
-    // }
+    #[test]
+    #[expected_failure(abort_code = EMismatchedSenderRecipient)]
+    fun test_mismatch_sener() {
+        let mut ts = ts::begin(@0x0);
+
+        let ik2 = {
+            ts.next_tx(DIANE);
+            let c = test_coin(&mut ts);
+            let (l, k) = lock::lock(c, ts.ctx());
+            let kid = object::id(&k);
+            transfer::public_transfer(l, DIANE);
+            transfer::public_transfer(k, DIANE);
+            kid
+        };
+
+        {
+            ts.next_tx(ALICE);
+            let c = test_coin(&mut ts);
+            create(c, ik2, BOB, ts.ctx());
+        };
+
+        {
+            ts.next_tx(DIANE);
+            let escrow: Escrow<Coin<SUI>> = ts.take_shared();
+            let k2: Key = ts.take_from_sender();
+            let l2: Locked<Coin<SUI>> = ts.take_from_sender();
+            let c = escrow.swap(k2, l2, ts.ctx());
+
+            transfer::public_transfer(c, DIANE);
+        };
+
+        abort 1337
+    }
+
+    #[test]
+    #[expected_failure(abort_code = EMismatchedExchangeObject)]
+    fun test_mismatch_object() {
+        let mut ts = ts::begin(@0x0);
+
+        {
+            ts.next_tx(BOB);
+            let c = test_coin(&mut ts);
+            let (l, k) = lock::lock(c, ts.ctx());
+            transfer::public_transfer(l, BOB);
+            transfer::public_transfer(k, BOB);
+        };
+
+        {
+            ts.next_tx(ALICE);
+            let c = test_coin(&mut ts);
+            let cid = object::id(&c);
+            create(c, cid, BOB, ts.ctx());
+        };
+
+        {
+            ts.next_tx(BOB);
+            let escrow: Escrow<Coin<SUI>> = ts.take_shared();
+            let k2: Key = ts.take_from_sender();
+            let l2: Locked<Coin<SUI>> = ts.take_from_sender();
+            let c = escrow.swap(k2, l2, ts.ctx());
+
+            transfer::public_transfer(c, BOB);
+        };
+
+        abort 1337
+    }
+
+    #[test]
+    fun test_return_to_sender() {
+        let mut ts = ts::begin(@0x0);
+
+        let cid = {
+            ts.next_tx(ALICE);
+            let c = test_coin(&mut ts);
+            let cid = object::id(&c);
+            let i = object::id_from_address(@0x0);
+            create(c, i, BOB, ts.ctx());
+            cid
+        };
+
+        {
+            ts.next_tx(ALICE);
+            let escrow: Escrow<Coin<SUI>> = ts.take_shared();
+            let c = escrow.return_to_sender(ts.ctx());
+
+            transfer::public_transfer(c, ALICE);
+        };
+
+        ts.next_tx(@0x0);
+
+        {
+            let c: Coin<SUI> = ts.take_from_address_by_id(ALICE, cid);
+            ts::return_to_address(ALICE, c)
+        };
+
+        ts::end(ts);
+    }
+
+    
 } 
