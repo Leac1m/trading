@@ -264,5 +264,51 @@ module escrow::shared {
         ts::end(ts);
     }
 
-    
+    #[test]
+    #[expected_failure]
+    fun test_return_to_sender_failed_swap() {
+        let mut ts = ts::begin(@0x0);
+
+        let ik2 = {
+            ts.next_tx(BOB);
+            let c = test_coin(&mut ts);
+            let (l, k) =  lock::lock(c, ts.ctx());
+            let kid = object::id(&k);
+            transfer::public_transfer(l, BOB);
+            transfer::public_transfer(k, BOB);
+            kid
+        };
+
+        {
+            ts.next_tx(ALICE);
+            let c = test_coin(&mut ts);
+            create(c, ik2, BOB, ts.ctx());
+        };
+
+        {
+            ts.next_tx(ALICE);
+            let escrow: Escrow<Coin<SUI>> = ts.take_shared();
+            let c = escrow.return_to_sender(ts.ctx());
+            transfer::public_transfer(c, ALICE);
+        };
+
+        {
+            ts.next_tx(BOB);
+            let escrow: Escrow<Coin<SUI>> = ts.take_shared();
+            let c = escrow.return_to_sender(ts.ctx());
+            transfer::public_transfer(c, ALICE);
+        };
+
+        {
+            ts.next_tx(BOB);
+            let escrow: Escrow<Coin<SUI>> = ts.take_shared();
+            let k2: Key = ts.take_from_sender();
+            let l2: Locked<Coin<SUI>> = ts.take_from_sender();
+            let c = escrow.swap(k2, l2, ts.ctx());
+
+            transfer::public_transfer(c, BOB);
+        };
+
+        abort 1337
+    }
 } 
