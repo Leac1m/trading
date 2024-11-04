@@ -1,0 +1,48 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = "file:./dev.db"
+}
+
+/// Our `Locked` objects list
+model Locked {
+  id Int @id @default(autoincrement())
+  objectId String @unique
+  keyId String?
+  creator String?
+  itemId String?
+  deleted Boolean @default(false)
+
+  @@index([creator])
+  @@index([deleted])
+}
+
+// Our swap objects list
+model Escrow {
+  id Int @id @default(autoincrement())
+  objectId String @unique
+  sender String?
+  recipient String?
+  keyId String?
+  itemId String?
+  swapped Boolean @default(false)
+  cancelled Boolean @default(false)
+
+  @@index([recipient])
+  @@index([sender])
+}
+
+model Cursor {
+  id String @id
+  eventSeq String
+  txDigest String
+}
